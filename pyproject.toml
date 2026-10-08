@@ -1,0 +1,19 @@
+[project]
+name = "ecb-fx-pipeline"
+version = "0.1.0"
+description = "ECB exchange-rate pipeline: Python, DuckDB, dbt, Airflow and Streamlit, no database server"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dbt-duckdb>=1.11.0",
+    "duckdb>=1.5.5",
+    "pandas>=3.0.6",
+    "pyyaml>=6.0.3",
+    "requests>=2.33.1",
+    "streamlit>=1.65.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

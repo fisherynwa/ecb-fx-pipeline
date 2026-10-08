@@ -1,0 +1,9 @@
+# The connection: WHERE dbt builds the tables.
+# Same DuckDB file that the Python pipeline loads bronze into.
+ecb_fx:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/warehouse.duckdb   # relative to this dbt/ folder: run dbt from here
+      threads: 1

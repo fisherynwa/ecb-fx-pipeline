@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: fx_daily
+    description: Daily rates with returns and rolling volatility. One row per currency and day.
+    columns:
+      - name: rate_date
+        data_tests:
+          - not_null
+      - name: currency
+        data_tests:
+          - not_null
+      - name: daily_return
+        description: Change against the previous publication day. 0.002 = +0.2 %. NULL on the first day.
+      - name: volatility_20d
+        description: Annualised volatility of the last N log returns (N = var vol_window_days).
+
+  - name: fx_monthly
+    description: Monthly summary. One row per currency and month.
+    columns:
+      - name: month
+        description: First day of the month.
+        data_tests:
+          - not_null

@@ -1,0 +1,26 @@
+# The dbt project: tells dbt where things are and how to build them.
+name: ecb_fx
+version: "1.0.0"
+profile: ecb_fx        # which connection to use (see profiles.yml)
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+# Settings for the SQL, defined ONCE. Used in a model as {{ var('vol_window_days') }}.
+vars:
+  vol_window_days: 20         # rolling window for volatility
+  trading_days_per_year: 252  # to scale daily volatility to a year
+
+# Folder -> schema. Every model in models/silver/ becomes a table in the silver schema.
+models:
+  ecb_fx:
+    +materialized: table      # build each model as a table (CREATE OR REPLACE TABLE ... AS)
+    silver:
+      +schema: silver
+    gold:
+      +schema: gold
+
+# dbt sends anonymous usage statistics to its makers by default. Not needed here.
+flags:
+  send_anonymous_usage_stats: false

@@ -1,0 +1,8 @@
+# Packages the pipeline needs inside the Airflow container.
+# Same versions as in uv.lock, so Windows and the container write
+# the same DuckDB file with the same DuckDB version.
+requests==2.34.2
+pyyaml==6.0.3
+duckdb==1.5.5
+dbt-core==1.12.5
+dbt-duckdb==1.11.0

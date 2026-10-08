@@ -1,0 +1,21 @@
+# Documentation and tests for the silver model.
+# These are GENERIC tests: ready-made by dbt, you only name the column.
+
+version: 2
+
+models:
+  - name: ecb_rates
+    description: Clean ECB reference rates. One row per currency and day.
+    columns:
+      - name: rate_date
+        description: The day the rate applies to.
+        data_tests:
+          - not_null
+      - name: currency
+        description: Three-letter currency code, upper case.
+        data_tests:
+          - not_null
+      - name: units_per_eur
+        description: How many units of the currency one euro buys.
+        data_tests:
+          - not_null

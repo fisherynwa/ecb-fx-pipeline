@@ -1,0 +1,20 @@
+# All settings of the pipeline live here, not in the code.
+# Change a value here -> every script picks it up. No code changes needed.
+
+api:
+  base_url: https://data-api.ecb.europa.eu/service/data
+  dataset: EXR          # EXR = exchange rates
+  timeout_seconds: 30
+
+currencies: [USD, GBP, JPY, CHF]  # quoted against the euro
+start_period: "2026-01-01"
+
+paths:
+  raw_dir: data/raw     # where raw API responses are saved
+  database: data/warehouse.duckdb   # DuckDB database: one file, no server
+
+incremental:
+  lookback_days: 7      # on each run, re-fetch the last N days to catch ECB corrections
+
+checks:
+  max_days_stale: 5     # fail if the newest rate is older than this many days

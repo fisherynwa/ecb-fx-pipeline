@@ -1,0 +1,19 @@
+# Sources: tables that dbt does NOT build, only reads.
+# Bronze is loaded by Python (pipeline/load.py); dbt starts from there.
+# In a model:  {{ source('bronze', 'ecb_rates_raw') }}  ->  bronze.ecb_rates_raw
+
+version: 2
+
+sources:
+  - name: bronze
+    schema: bronze
+    tables:
+      - name: ecb_rates_raw
+        description: Raw ECB rates, all text, append-only. Loaded by pipeline/load.py.
+        config:
+          # Freshness: how old is the newest rate? Checked by "dbt source freshness".
+          # Warns after a long weekend, fails if the ECB data has stopped arriving.
+          loaded_at_field: "TRY_CAST(time_period AS TIMESTAMP)"
+          freshness:
+            warn_after: {count: 4, period: day}
+            error_after: {count: 6, period: day}

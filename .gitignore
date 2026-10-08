@@ -1,0 +1,8 @@
+# Python / uv
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Data is produced by the pipeline, not stored in git
+data/

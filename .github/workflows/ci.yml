@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel an older run of the same branch when a new commit is pushed
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - run: uvx ruff@0.16.9 check .
+      - run: uvx ruff@0.16.9 format --check .
+
+  unit-tests:
+    name: Unit tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run pytest -v
+
+  dbt:
+    name: dbt build on sample data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Load the synthetic sample into bronze
+        run: |
+          mkdir -p data/raw
+          cp tests/fixtures/ecb_rates_sample.csv data/raw/
+          uv run python -m pipeline.load
+      - name: dbt build (models + data tests)
+        working-directory: dbt
+        run: uv run dbt build
+
+  airflow:
+    name: Airflow image builds, DAG loads
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build the Airflow image
+        run: docker build -t ecb-fx-pipeline-airflow:ci ./airflow
+      - name: Check the DAG for import errors
+        run: >
+          docker run --rm
+          -e AIRFLOW__CORE__LOAD_EXAMPLES=false
+          -v "$PWD/airflow/dags:/opt/airflow/dags:ro"
+          -v "$PWD/airflow/check_dags.py:/opt/airflow/check_dags.py:ro"
+          ecb-fx-pipeline-airflow:ci
+          python /opt/airflow/check_dags.py

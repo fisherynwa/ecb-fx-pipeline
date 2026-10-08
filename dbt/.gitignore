@@ -1,0 +1,5 @@
+# Produced by dbt on every run, not stored in git
+target/
+logs/
+dbt_packages/
+.user.yml
