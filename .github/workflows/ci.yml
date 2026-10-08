@@ -49,6 +49,8 @@ jobs:
       - name: dbt build (models + data tests)
         working-directory: dbt
         run: uv run dbt build
+      - name: Export gold to Parquet
+        run: uv run python -m pipeline.export
 
   airflow:
     name: Airflow image builds, DAG loads

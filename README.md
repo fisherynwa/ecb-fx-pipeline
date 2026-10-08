@@ -11,10 +11,20 @@ rates, built without a database server. Python loads the raw data into DuckDB,
 dbt builds and tests the analytics tables, Airflow schedules the run, and a
 Streamlit dashboard shows the result.
 
-![Dashboard](docs/dashboard.png)
+![Dashboard](figures/dashboard.png)
 
 The whole warehouse is a single DuckDB file, so there is nothing to install or
 start besides Python packages: clone, `uv sync`, run.
+
+**Just want to see it?** The gold tables are committed as Parquet files in
+`published/`, so the dashboard works straight after cloning:
+
+```bash
+git clone https://github.com/fisherynwa/ecb-fx-pipeline.git
+cd ecb-fx-pipeline
+uv sync
+uv run streamlit run app/streamlit_app.py
+```
 
 ## Architecture
 
@@ -25,8 +35,11 @@ flowchart LR
     B -->|dbt| S[("silver.ecb_rates<br/>typed, deduplicated")]
     S -->|dbt| G1[("gold.fx_daily<br/>returns, volatility")]
     S -->|dbt| G2[("gold.fx_monthly<br/>monthly summary")]
+    G1 --> P["published/*.parquet<br/>committed snapshot"]
+    G2 --> P
     G1 --> D["Streamlit dashboard"]
     G2 --> D
+    P -.->|"no warehouse yet"| D
 ```
 
 Airflow runs the pipeline on weekdays at 17:00 Berlin time, after the ECB
@@ -42,7 +55,8 @@ ingest_to_bronze  >>  dbt_source_freshness  >>  dbt_build
 | Bronze | Python + DuckDB | All values as text, plus `_source_file` and `_loaded_at` |
 | Silver | dbt | Real types, one row per currency and day (newest load wins) |
 | Gold | dbt | Daily returns, 20-day volatility, monthly averages |
-| Dashboard | Streamlit + Altair | Reads gold only |
+| Published | Python + DuckDB | Gold tables as Parquet, committed to git |
+| Dashboard | Streamlit + Altair | Reads gold only: the warehouse, or the Parquet snapshot |
 
 ## Quick start
 
@@ -61,6 +75,7 @@ uv run dbt build                      # silver + gold, with all data tests
 uv run dbt source freshness           # is the newest rate recent enough?
 cd ..
 
+uv run python -m pipeline.export      # gold -> published/*.parquet
 uv run streamlit run app/streamlit_app.py
 ```
 
@@ -86,7 +101,8 @@ ecb-fx-pipeline/
 │   ├── config.py            config.yaml -> frozen dataclass
 │   ├── extract.py           ECB API -> raw CSV file
 │   ├── load.py              raw CSV -> bronze, each file loaded once
-│   └── ingest.py            incremental extract + load
+│   ├── ingest.py            incremental extract + load
+│   └── export.py            gold -> Parquet snapshot
 ├── dbt/                     Transformations and data tests
 │   ├── models/sources.yml   bronze as a source, with a freshness check
 │   ├── models/silver/       ecb_rates
@@ -96,6 +112,7 @@ ecb-fx-pipeline/
 ├── app/                     Streamlit dashboard
 │   ├── data.py              queries and data shaping (tested)
 │   └── streamlit_app.py     the page
+├── published/               Gold tables as Parquet (committed)
 ├── tests/                   pytest tests and a synthetic sample file
 ├── docker-compose.yml       Airflow in one container
 └── .github/workflows/ci.yml
@@ -122,15 +139,21 @@ ecb-fx-pipeline/
 - **One writer at a time.** DuckDB allows a single writer, so the DAG runs with
   `max_active_runs=1`, and the dashboard opens the file read-only, closes it
   after each query and caches results for five minutes.
+- **A committed Parquet snapshot of gold.** The warehouse file stays out of git,
+  but the gold tables are small, so they are exported to Parquet and
+  committed. The export sorts rows the same way every time, so the files only
+  change when the data does, and anyone can open the dashboard without
+  running the pipeline.
 - **Separate environments in the Airflow image.** The pipeline and dbt run in
   their own virtual environment, so their packages can never conflict with
   Airflow's.
 
 ## Testing
 
-- **21 unit tests** (pytest): configuration, API handling with mocked HTTP
+- **24 unit tests** (pytest): configuration, API handling with mocked HTTP
   responses (200, 404 for "no data", 500), byte-exact raw files, idempotent
-  loading, the incremental start date, and the dashboard's data functions.
+  loading, the incremental start date, the dashboard's data functions, and the
+  Parquet export (same data as the warehouse, identical files on every run).
 - **10 data tests** (dbt): no missing values, one rate per currency and day,
   only positive and finite rates, no future dates, and a warning for daily
   moves above 10 %. Plus a freshness check on the bronze source.

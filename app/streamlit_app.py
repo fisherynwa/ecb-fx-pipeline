@@ -33,26 +33,40 @@ st.set_page_config(page_title="ECB exchange rates", page_icon="💶", layout="wi
 cfg = load_config()
 
 
-# Cache: read the database once, then reuse the result for 5 minutes. Every click
-# re-runs this script from the top; without the cache, every click would query DuckDB.
-@st.cache_data(ttl=300)
-def load(db_path: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    return data.load_daily(Path(db_path)), data.load_monthly(Path(db_path))
-
-
-if not cfg.database.exists():
-    st.error(f"No database at `{cfg.database}`. Run the pipeline first.")
+# Two possible sources for the same gold tables:
+#   - the DuckDB warehouse, where the pipeline has run (data/ is not in git)
+#   - the published Parquet snapshot in published/, which is in git, so a fresh
+#     clone shows the dashboard without running the pipeline first
+if cfg.database.exists():
+    source, location = "warehouse", cfg.database
+elif (cfg.published_dir / "fx_daily.parquet").exists():
+    source, location = "published", cfg.published_dir
+else:
+    st.error("No data yet. Run the pipeline first: ingest, then dbt build.")
     st.stop()
+
+
+# Cache: read the data once, then reuse the result for 5 minutes. Every click
+# re-runs this script from the top; without the cache, every click would read it again.
+@st.cache_data(ttl=300)
+def load(source: str, location: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if source == "warehouse":
+        return data.load_daily(Path(location)), data.load_monthly(Path(location))
+    return data.load_published(Path(location))
+
+
 try:
-    daily, monthly = load(str(cfg.database))
+    daily, monthly = load(source, str(location))
 except duckdb.CatalogException:
     st.error(
         "The gold tables don't exist yet. Run `dbt build` in the dbt folder first."
     )
     st.stop()
 except duckdb.IOException:
-    st.warning("The database is busy, probably because the pipeline is writing to it. "
-               "Try again in a minute.")  # fmt: skip
+    st.warning(
+        "The database is busy, probably because the pipeline is writing to it. "
+        "Try again in a minute."
+    )
     st.stop()
 
 # Currencies in config order first, then any others found in the data
@@ -106,7 +120,8 @@ latest_date = daily["rate_date"].max()
 st.title("Euro reference exchange rates")
 st.caption(
     f"ECB daily reference rates · data up to {latest_date:%d %B %Y} · "
-    f"{len(currencies)} currencies · source table: gold.fx_daily"
+    f"{len(currencies)} currencies · "
+    f"{'DuckDB warehouse' if source == 'warehouse' else 'published snapshot'}"
 )
 
 # ---------- Filter, one row above the charts ----------

@@ -28,6 +28,8 @@ class Config:
     database: Path
     lookback_days: int
     max_days_stale: int
+    # Gold tables as Parquet, committed to git (see pipeline/export.py)
+    published_dir: Path = PROJECT_ROOT / "published"
 
 
 def load_config(path: Path = CONFIG_FILE) -> Config:
@@ -45,4 +47,5 @@ def load_config(path: Path = CONFIG_FILE) -> Config:
         # .get(..., default): use the default if the setting is missing from the file
         lookback_days=raw.get("incremental", {}).get("lookback_days", 7),
         max_days_stale=raw.get("checks", {}).get("max_days_stale", 5),
+        published_dir=PROJECT_ROOT / raw["paths"].get("published_dir", "published"),
     )

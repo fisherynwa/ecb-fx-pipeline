@@ -7,34 +7,6 @@ import pytest
 from app import data
 
 
-@pytest.fixture
-def gold_db(tmp_path):
-    """A tiny warehouse with the two gold tables: 2 currencies x 3 days."""
-    # Not "gold.duckdb": DuckDB names the database after its file, and a database
-    # called "gold" would clash with the schema "gold"
-    path = tmp_path / "warehouse.duckdb"
-    with duckdb.connect(str(path)) as con:
-        con.execute("CREATE SCHEMA gold")
-        con.execute(
-            """
-            CREATE TABLE gold.fx_daily AS
-            SELECT * FROM (VALUES
-                (DATE '2026-10-01', 'USD', 1.10,  NULL,    NULL),
-                (DATE '2026-10-02', 'USD', 1.21,  0.10,    NULL),
-                (DATE '2026-10-05', 'USD', 1.10,  -0.0909, NULL),
-                (DATE '2026-10-01', 'JPY', 170.0, NULL,    NULL),
-                (DATE '2026-10-02', 'JPY', 175.1, 0.03,    NULL),
-                (DATE '2026-10-05', 'JPY', 178.5, 0.0194,  NULL)
-            ) AS t(rate_date, currency, units_per_eur, daily_return, volatility_20d)
-            """
-        )
-        con.execute(
-            "CREATE TABLE gold.fx_monthly AS "
-            "SELECT DATE '2026-10-01' AS month, 'USD' AS currency"
-        )
-    return path
-
-
 def test_load_daily_reads_the_gold_table(gold_db):
     daily = data.load_daily(gold_db)
 

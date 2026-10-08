@@ -10,6 +10,13 @@ import duckdb
 import pandas as pd
 
 PERIODS = {"1 month": 1, "3 months": 3, "6 months": 6, "All": None}
+DAILY_COLUMNS = [
+    "rate_date",
+    "currency",
+    "units_per_eur",
+    "daily_return",
+    "volatility_20d",
+]
 
 
 def read_sql(db_path: Path, sql: str) -> pd.DataFrame:
@@ -38,6 +45,24 @@ def load_daily(db_path: Path) -> pd.DataFrame:
 def load_monthly(db_path: Path) -> pd.DataFrame:
     """gold.fx_monthly: one row per currency and month."""
     return read_sql(db_path, "SELECT * FROM gold.fx_monthly ORDER BY currency, month")
+
+
+def read_parquet(path: Path) -> pd.DataFrame:
+    """Read one Parquet file with an in-memory DuckDB: no database file involved."""
+    with duckdb.connect() as con:
+        return con.execute("SELECT * FROM read_parquet(?)", [str(path)]).df()
+
+
+def load_published(folder: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The same two tables as load_daily and load_monthly, from the Parquet export.
+
+    Used when there is no DuckDB warehouse file, e.g. right after cloning the repo.
+    """
+    daily = read_parquet(folder / "fx_daily.parquet")[DAILY_COLUMNS]
+    monthly = read_parquet(folder / "fx_monthly.parquet")
+    daily = daily.sort_values(["currency", "rate_date"], ignore_index=True)
+    monthly = monthly.sort_values(["currency", "month"], ignore_index=True)
+    return daily, monthly
 
 
 def latest_per_currency(daily: pd.DataFrame) -> pd.DataFrame:
