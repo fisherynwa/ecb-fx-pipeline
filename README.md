@@ -144,21 +144,7 @@ ecb-fx-pipeline/
   committed. The export sorts rows the same way every time, so the files only
   change when the data does, and anyone can open the dashboard without
   running the pipeline.
-- **Separate environments in the Airflow image.** The pipeline and dbt run in
-  their own virtual environment, so their packages can never conflict with
-  Airflow's.
 
-## Testing
-
-- **24 unit tests** (pytest): configuration, API handling with mocked HTTP
-  responses (200, 404 for "no data", 500), byte-exact raw files, idempotent
-  loading, the incremental start date, the dashboard's data functions, and the
-  Parquet export (same data as the warehouse, identical files on every run).
-- **10 data tests** (dbt): no missing values, one rate per currency and day,
-  only positive and finite rates, no future dates, and a warning for daily
-  moves above 10 %. Plus a freshness check on the bronze source.
-- **CI** (GitHub Actions) on every push: ruff, pytest, `dbt build` on a
-  synthetic sample file, and an Airflow image build with a DAG import check.
 
 ```bash
 uv run pytest -v
